@@ -1,15 +1,20 @@
+// Copyright 2019 Drone.IO Inc. All rights reserved.
+// Use of this source code is governed by the Drone Non-Commercial License
+// that can be found in the LICENSE file.
+
 package yaml
 
 import (
 	"bytes"
 	"fmt"
+	"sort"
 	"strings"
 
 	droneyaml "github.com/drone/drone-yaml/yaml"
 	"github.com/drone/drone-yaml/yaml/converter/legacy/matrix"
 	"github.com/drone/drone-yaml/yaml/pretty"
 
-	"gopkg.in/yaml.v2"
+	"github.com/buildkite/yaml"
 )
 
 // Config provides the high-level configuration.
@@ -34,6 +39,13 @@ type Config struct {
 // Convert converts the yaml configuration file from
 // the legacy format to the 1.0+ format.
 func Convert(d []byte) ([]byte, error) {
+	// hack: this is a hack to support teams migrating
+	// from 0.8 to 1.0 that are using yaml merge keys.
+	// it can be removed in a future version.
+	if hasMergeKeys(d) {
+		d, _ = expandMergeKeys(d)
+	}
+
 	from := new(Config)
 	err := yaml.Unmarshal(d, from)
 
@@ -86,6 +98,40 @@ func Convert(d []byte) ([]byte, error) {
 			current := pipeline
 			current.Name = fmt.Sprintf("matrix-%d", index+1)
 
+			services := make([]*droneyaml.Container, 0)
+			for _, service := range current.Services {
+				if len(service.When.Matrix) == 0 {
+					services = append(services, service)
+					continue
+				}
+
+				for whenKey, whenValue := range service.When.Matrix {
+					for envKey, envValue := range environ {
+						if whenKey == envKey && whenValue == envValue {
+							services = append(services, service)
+						}
+					}
+				}
+			}
+			current.Services = services
+
+			steps := make([]*droneyaml.Container, 0)
+			for _, step := range current.Steps {
+				if len(step.When.Matrix) == 0 {
+					steps = append(steps, step)
+					continue
+				}
+
+				for whenKey, whenValue := range step.When.Matrix {
+					for envKey, envValue := range environ {
+						if whenKey == envKey && whenValue == envValue {
+							steps = append(steps, step)
+						}
+					}
+				}
+			}
+			current.Steps = steps
+
 			marshaled, err := yaml.Marshal(&current)
 
 			if err != nil {
@@ -113,9 +159,8 @@ func Convert(d []byte) ([]byte, error) {
 	}
 
 	secrets := toSecrets(from)
-
-	if secrets != nil {
-		manifest.Resources = append(manifest.Resources, secrets)
+	for _, secret := range secrets {
+		manifest.Resources = append(manifest.Resources, secret)
 	}
 
 	buf := new(bytes.Buffer)
@@ -176,6 +221,7 @@ func toConditions(from Constraints) droneyaml.Conditions {
 			Include: from.Status.Include,
 			Exclude: from.Status.Exclude,
 		},
+		Matrix: from.Matrix,
 	}
 }
 
@@ -210,29 +256,36 @@ func toPullPolicy(pull bool) string {
 
 // helper function converts the legacy secret syntax to the
 // new secret variable syntax.
-func toSecrets(from *Config) *droneyaml.Secret {
-	secret := &droneyaml.Secret{}
-	secret.Kind = "secret"
-	secret.Type = "general"
-	secret.External = map[string]droneyaml.ExternalData{}
-	for key, val := range from.Secrets {
-		external := droneyaml.ExternalData{}
+func toSecrets(from *Config) []*droneyaml.Secret {
+	var keys []string
+	for key := range from.Secrets {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	var secrets []*droneyaml.Secret
+	for _, key := range keys {
+		val := from.Secrets[key]
+		secret := new(droneyaml.Secret)
+		secret.Name = key
+		secret.Kind = "secret"
+
 		if val.Driver == "vault" {
 			if val.DriverOpts != nil {
-				external.Path = val.DriverOpts["path"]
-				external.Name = val.DriverOpts["key"]
+				secret.Get.Path = val.DriverOpts["path"]
+				secret.Get.Name = val.DriverOpts["key"]
 			}
 		} else if val.Path != "" {
-			external.Path = val.Path
+			secret.Get.Path = val.Path
 		} else {
-			external.Path = val.Vault
+			secret.Get.Path = val.Vault
 		}
-		secret.External[key] = external
+		secrets = append(secrets, secret)
 	}
-	if len(secret.External) == 0 {
+	if len(secrets) == 0 {
 		return nil
 	}
-	return secret
+	return secrets
 }
 
 // helper function converts the legacy vargs syntax to the

@@ -1,3 +1,7 @@
+// Copyright 2019 Drone.IO Inc. All rights reserved.
+// Use of this source code is governed by the Drone Non-Commercial License
+// that can be found in the LICENSE file.
+
 package engine
 
 type (
@@ -81,6 +85,7 @@ type (
 		Ports      []*Port    `json:"ports,omitempty"`
 		Privileged bool       `json:"privileged,omitempty"`
 		PullPolicy PullPolicy `json:"pull_policy,omitempty"`
+		User       string     `json:"user"`
 	}
 
 	// File defines a file that should be uploaded or

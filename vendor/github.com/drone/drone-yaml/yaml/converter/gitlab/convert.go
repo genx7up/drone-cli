@@ -1,3 +1,7 @@
+// Copyright 2019 Drone.IO Inc. All rights reserved.
+// Use of this source code is governed by the Drone Non-Commercial License
+// that can be found in the LICENSE file.
+
 package gitlab
 
 import (
@@ -8,7 +12,7 @@ import (
 	"github.com/drone/drone-yaml/yaml/compiler/image"
 	"github.com/drone/drone-yaml/yaml/pretty"
 
-	"gopkg.in/yaml.v2"
+	"github.com/buildkite/yaml"
 )
 
 // Convert converts the yaml configuration file from

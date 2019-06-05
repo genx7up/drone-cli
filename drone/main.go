@@ -15,13 +15,14 @@ import (
 	"github.com/drone/drone-cli/drone/jsonnet"
 	"github.com/drone/drone-cli/drone/lint"
 	"github.com/drone/drone-cli/drone/log"
-	"github.com/drone/drone-cli/drone/node"
+	"github.com/drone/drone-cli/drone/orgsecret"
 	"github.com/drone/drone-cli/drone/plugins"
 	"github.com/drone/drone-cli/drone/queue"
 	"github.com/drone/drone-cli/drone/repo"
 	"github.com/drone/drone-cli/drone/secret"
 	"github.com/drone/drone-cli/drone/server"
 	"github.com/drone/drone-cli/drone/sign"
+	"github.com/drone/drone-cli/drone/starlark"
 	"github.com/drone/drone-cli/drone/user"
 
 	_ "github.com/joho/godotenv/autoload"
@@ -85,13 +86,14 @@ func main() {
 		secret.Command,
 		server.Command,
 		queue.Command,
-		node.Command,
+		orgsecret.Command,
 		autoscale.Command,
 		format.Command,
 		convert.Command,
 		lint.Command,
 		sign.Command,
 		jsonnet.Command,
+		starlark.Command,
 		plugins.Command,
 	}
 

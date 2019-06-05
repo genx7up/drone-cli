@@ -1,9 +1,24 @@
+// Copyright 2019 Drone IO, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package docker
 
 import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 
@@ -28,6 +43,17 @@ func NewEnv() (engine.Engine, error) {
 		return nil, err
 	}
 	return New(cli), nil
+}
+
+// Ping attempts to ping the Docker daemon. An error is returned
+// if the ping attempt fails.
+func Ping(ctx context.Context, engine engine.Engine) error {
+	eng, ok := engine.(*dockerEngine)
+	if !ok {
+		return fmt.Errorf("Not a valid Engine type")
+	}
+	_, err := eng.client.Ping(ctx)
+	return err
 }
 
 // New returns a new Engine using the Docker API Client.
